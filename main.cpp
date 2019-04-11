@@ -129,17 +129,21 @@ public:
             : parameters(std::move(parameters)), consumer(std::move(consumer)) {}
 
     void walk(const Path &curPath) {
+        vector<Path> subDirs;
+
         try {
-            for (auto const &path : curPath.getSubDirs()) {
-                if (path.isDir()) {
-                    walk(path);
-                }
-                if (parameters.check(path)) {
-                    consumer(path.getPath());
-                }
-            }
+            subDirs = curPath.getSubDirs();
         } catch (runtime_error const &e) {
             cerr << e.what() << endl;
+        }
+
+        for (auto const &path : subDirs) {
+            if (path.isDir()) {
+                walk(path);
+            }
+            if (parameters.check(path)) {
+                consumer(path.getPath());
+            }
         }
     }
 

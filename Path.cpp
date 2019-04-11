@@ -15,14 +15,12 @@ using namespace std;
 
 
 const char *Path::separator = "/";
+const char *DOT = ".";
+const char *DOTDOT = "..";
 
 
 void throwSysError(string const &msg) {
     throw runtime_error(string("Error: ") + msg + "\n" + strerror(errno));
-}
-
-void throwSysError() {
-    throwSysError("");
 }
 
 
@@ -38,18 +36,38 @@ static string getCWD() {
 
 
 string normalizePath(string path) {
-    if (path.substr(0, strlen(Path::separator)) != Path::separator) {
-         path = getCWD() + Path::separator + path;
-    }
-    return path;
-    auto st = realpath(path.c_str(), nullptr);
+    size_t sepLen = strlen(Path::separator);
 
-    if (st == nullptr) {
-        throwSysError("Cannot normalize path");
+    if (path.substr(0, sepLen) != Path::separator) {
+        path = getCWD() + Path::separator + path;
     }
-    string res(st);
-    free(st);
-    return res;
+
+    vector<string> names;
+    names.emplace_back();
+    for (size_t pos = 0; pos < path.size();) {
+        if (path.substr(pos, sepLen) == Path::separator) {
+            names.emplace_back();
+            pos += sepLen;
+        } else {
+            names.back().push_back(path[pos]);
+            pos++;
+        }
+    }
+    vector<string> normNames;
+    for (const string& name : names) {
+        if (!normNames.empty() && name == DOTDOT) {
+            normNames.pop_back();
+        } else if (!name.empty() && name != DOT) {
+            normNames.push_back(name);
+        }
+    }
+
+    path.clear();
+    for (const string& name : normNames) {
+        path.append(Path::separator + name);
+    }
+
+    return path;
 }
 
 
@@ -67,9 +85,7 @@ Path::Path(const Path &root, const string &pathname)
 
 
 Path::Path(Path const &root, std::string const &pathname, bool isDir)
-        : path(root.path + separator + pathname), isDirFlag(isDir) {
-    path = normalizePath(path);
-}
+        : path(root.path + separator + pathname), isDirFlag(isDir) {}
 
 
 Path::Stat Path::getStat() const {
@@ -103,7 +119,7 @@ struct linux_dirent64 {
 struct FileDescriptorHolder {
     int fd;
 
-    explicit FileDescriptorHolder(const string& path) {
+    explicit FileDescriptorHolder(const string &path) {
         fd = open(path.c_str(), O_RDONLY | O_DIRECTORY);
 
         if (fd == -1) {
@@ -121,8 +137,6 @@ struct FileDescriptorHolder {
 
 std::vector<Path> Path::getSubDirs() const {
     static const size_t BUF_SIZE = 1024;
-    static const string DOT = ".";
-    static const string DOTDOT = "..";
 
     FileDescriptorHolder holder(path);
 
@@ -142,7 +156,7 @@ std::vector<Path> Path::getSubDirs() const {
 
         for (int bpos = 0; bpos < nread;) {
             auto d = (struct linux_dirent64 *) (buf + bpos);
-            bool notDots = d->d_name != DOTDOT && d->d_name != DOT;
+            bool notDots = d->d_name != string(DOTDOT) && d->d_name != string(DOT);
             bool regOrDir = d->d_type == DT_DIR || d->d_type == DT_REG;
             if (notDots && regOrDir) {
                 Path curPath(*this, d->d_name, d->d_type == DT_DIR);
