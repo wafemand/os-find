@@ -7,6 +7,9 @@
 class Path {
 public:
     static const char *separator;
+    static const char *dotdot;
+    static const char *dot;
+
 
     explicit Path(std::string pathname);
     Path(Path const &root, std::string const &pathname);
@@ -33,4 +36,5 @@ private:
 
     bool isDirFlag = false;
     std::string path;
+
 };

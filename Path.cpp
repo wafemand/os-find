@@ -15,8 +15,8 @@ using namespace std;
 
 
 const char *Path::separator = "/";
-const char *DOT = ".";
-const char *DOTDOT = "..";
+const char *Path::dot = ".";
+const char *Path::dotdot = "..";
 
 
 void throwSysError(string const &msg) {
@@ -55,9 +55,9 @@ string normalizePath(string path) {
     }
     vector<string> normNames;
     for (const string& name : names) {
-        if (!normNames.empty() && name == DOTDOT) {
+        if (!normNames.empty() && name == Path::dotdot) {
             normNames.pop_back();
-        } else if (!name.empty() && name != DOT) {
+        } else if (!name.empty() && name != Path::dot) {
             normNames.push_back(name);
         }
     }
@@ -156,7 +156,7 @@ std::vector<Path> Path::getSubDirs() const {
 
         for (int bpos = 0; bpos < nread;) {
             auto d = (struct linux_dirent64 *) (buf + bpos);
-            bool notDots = d->d_name != string(DOTDOT) && d->d_name != string(DOT);
+            bool notDots = d->d_name != string(dotdot) && d->d_name != string(dot);
             bool regOrDir = d->d_type == DT_DIR || d->d_type == DT_REG;
             if (notDots && regOrDir) {
                 Path curPath(*this, d->d_name, d->d_type == DT_DIR);
